@@ -2,6 +2,8 @@ var sw = 20,
     sh = 20,
     tr = 30,
     tc = 30;
+// 零件准备
+// 把食物，蛇头，蛇身的每一节都看成是一个个的小方块，实例化的时候为小方块里对应添加不同的样式类名就能变成不同的事物
 function square(x,y,classname){
     this.x = x;
     this.y = y;
@@ -10,10 +12,11 @@ function square(x,y,classname){
 }
 square.prototype = {
     create:function(){
-        this.viewContent = document.createElement("div");//因为后面要改变蛇头 的方向，所以要存着
+        // viewContent为创建的方块，并设置好类名、在游戏界面中的位置
+        this.viewContent = document.createElement("div");
         this.viewContent.className = this.classname;
-        this.viewContent.style.width = 20  + "px";
-        this.viewContent.style.height = 20 + "px";
+        this.viewContent.style.width = sw  + "px";
+        this.viewContent.style.height = sh + "px";
         this.viewContent.style.left = this.x * sw + "px";
         this.viewContent.style.top = this.y * sh + "px";
         this.parent.appendChild(this.viewContent);
@@ -22,6 +25,7 @@ square.prototype = {
         this.parent.removeChild(this.viewContent);
     }
 }
+// 蛇的构造函数
 function snake(){
     
 }
@@ -32,10 +36,13 @@ snake.prototype = {
         this.creatfood();
 
     },
+    // 用链表的方式连接蛇的各个部分，蛇移动时更新链表中的关键节点的前后指针
     initData:function(){
         this.head = null;
         this.tail = null;
+        // pos数组存储蛇身体的每一节的坐标，用于判断蛇头是否下一步会咬到自己
         this.pos = [];
+        // 蛇头往不同方向走坐标的对应变化和蛇头应旋转的角度
         this.poschange = {
             left:{
                 x:-1,
@@ -59,11 +66,17 @@ snake.prototype = {
             }
 
         };
-        this.direction = "down";
+        // 蛇默认往右走
+        this.direction = "right";
         this.timer = null;
         this.duration = 200;
-        this.nextpos = {}
+        // 存储蛇头下一步的坐标，用于判断下一步蛇的情况分析，咬到自己或者吃到食物，或者安全，或者撞到墙
+        this.nextpos = {};
+        this.food = null;
+        // 存储食物坐标
+        this.foodpos = null;
     },
+    // 初始化蛇的各个部分
     createsnake:function(){
         this.head = new square(2,0,"snakehead");
         this.pos.push([2,0]);
@@ -83,6 +96,7 @@ snake.prototype = {
         this.score = 0;
     
     },
+    // 新创建一节蛇身
     createsection:function(attr,x,y,className){
         this[attr] = new square(x,y,className);
         this.pos.push(this[attr].x,this[attr].y);
@@ -123,13 +137,16 @@ snake.prototype = {
             x:this.head.x + this.poschange[this.direction].x,
             y:this.head.y + this.poschange[this.direction].y
         }
+        // 判断撞到墙
         if(this.nextpos.x < 0 || this.nextpos.x > tc - 1 || this.nextpos.y < 0 || this.nextpos.y > tr - 1){
             return this.stratiges.gameover.call(this)
 
         }
+        // 判断咬到自己
         if(this.bitself()){ 
             return this.stratiges.gameover.call(this)
         }
+        // 判断吃到食物
         if(this.nextpos.x === this.foodpos[0] && this.nextpos.y === this.foodpos[1]){
             return this.stratiges.eat.call(this)
         }
@@ -146,8 +163,9 @@ snake.prototype = {
        
     },
     stratiges:{
+        // 移动时更新链表关键节点的前后指针，移动效果是通过删除蛇头，在原来蛇头的位置添加一节蛇身，前面添加蛇头，后面删除蛇尾。
         move:function(flag){   
-            console.log(this.direction)
+            console.log(this,this.direction)
             this.nextpos = {
                 x:this.head.x + this.poschange[this.direction].x,
                 y:this.head.y + this.poschange[this.direction].y
@@ -166,6 +184,7 @@ snake.prototype = {
             this.head.create();
             this.head.viewContent.style.transform = "rotate(" + this.poschange[this.direction].rotate + "deg)";
             this.pos.splice(0,0,[this.nextpos.x,this.nextpos.y]) 
+            // 当吃到食物时，后面的蛇尾就不用删除了
             if(flag){
                 
                 return;
@@ -175,6 +194,7 @@ snake.prototype = {
                 this.tail.next = null;      
                 this.pos.pop();
         },
+        // 游戏结束
         gameover:function(){
             clearInterval(this.timer);
        alert("gameover!Your score is " + game.snake.score);
@@ -184,8 +204,10 @@ snake.prototype = {
             game.initData()
             // game.snake.init()
         },  
+        // 吃到食物
         eat:function(){
-            this.stratiges.move(true)
+            // console.log(this)  注意这个this指向是指向this.strategy
+            this.stratiges.move.call(this,true)
             this.score ++;
             this.foodpos = this.getfoodpos();
             this.food.viewContent.style.left = this.foodpos[0] * sw + "px";
@@ -197,6 +219,7 @@ snake.prototype = {
 
 
 }
+// 随机产生食物的坐标
 function getrandomNum(min,max){
     return Math.round(Math.random() * (max - min) + min);
 }
@@ -213,18 +236,15 @@ var game = {
         this.snake = new snake();
     },
     handle:function(){
-        window.onclick = function(e){
-            console.log(e.target)
-        }
         var self = this;
+        // 开始游戏
         this.ostart.onclick = function(){
-            console.log(1)
             this.parentNode.style.display = "none";
             self.snake.init()
             self.snake.startMove()          
         }    
+        // 游戏中途点击界面暂停，再次点击继续游戏
         this.ocontent.onclick = function(e){
-            console.log(6)
             clearInterval(self.snake.timer)
                 self.opause.parentNode.style.display = "block";
         self.opause.onclick = function(){
@@ -233,9 +253,11 @@ var game = {
         }
             
         }
+        // 键盘按方向键控制蛇头的移动方向
         window.onkeydown = function(e){
             console.log(8,game.snake)
             if(e.which === 37){
+                // 向右走的时候不能直接让其向左走，其他方向类似
                return game.snake.direction = game.snake.direction === "right" ? "right" : "left";
             }
             if(e.which === 38){
